@@ -1,7 +1,7 @@
 # 深度登记 港口潮窗水深与进港排程
 
 - 规模：中型
-- 核心规则：潮位线性插值求达到最低水深的时刻区间，与航道占用和引航窗口求交，安全端点含义明确
+- 核心规则：潮位线性插值求达到最低水深的时刻区间，与航道占用和引航窗口求交；单向窄段按方向编队放行，异向之间留清空等待，同一时刻只允许一个方向占用
 
 ## 功能模块
 
@@ -11,8 +11,8 @@
 | M2 船舶条件 | 运行船舶条件并核对证据 | `POST /api/2` | `app/modules/m2_vessels/rules.py` | `tests/test_vessels.py` |
 | M3 水深求窗 | 运行水深求窗并核对证据 | `POST /api/3` | `app/modules/m3_windows/rules.py` | `tests/test_windows.py` |
 | M4 航道冲突 | 运行航道冲突并核对证据 | `POST /api/4` | `app/modules/m4_channel/rules.py` | `tests/test_channel.py` |
-| M5 引航排程 | 运行引航排程并核对证据 | `POST /api/5` | `app/modules/m5_schedule/rules.py` | `tests/test_schedule.py` |
-| M6 计划对账 | 运行计划对账并核对证据 | `POST /api/6` | `app/modules/m6_balance/rules.py` | `tests/test_balance.py` |
+| M5 引航排程 | 运行引航排程并核对证据 | `POST /api/5` | `app/modules/m5_schedule/rules.py` | `tests/test_schedule.py`、`tests/test_passage.py` |
+| M6 计划对账 | 运行计划对账并核对证据 | `POST /api/6` | `app/modules/m6_balance/rules.py` | `tests/test_balance.py`、`tests/test_passage.py` |
 | M7 变更复核 | 运行变更复核并核对证据 | `POST /api/7` | `app/modules/m7_changes/rules.py` | `tests/test_changes.py` |
 
 ## 陷阱登记
@@ -27,6 +27,10 @@
 | TRAP-14 | 同版冲突 | 静默采信错误值 | 隔离冲突 | `app/modules/m1_tides/rules.py` | `tests/test_tides.py::test_tides_duplicate` |
 | TRAP-23 | 相邻端点 | 静默采信错误值 | 半开区间 | `app/modules/m4_channel/rules.py` | `tests/test_channel.py::test_channel_end` |
 | TRAP-25 | 旧修订 | 静默采信错误值 | 拒绝陈旧版本 | `app/modules/m7_changes/rules.py` | `tests/test_changes.py::test_change_stale` |
+| TRAP-31 | 上下行会船 | 逐船取最早时段，让异向在窄段相遇 | 按方向编队，异向之间强制清空等待 | `app/modules/m5_schedule/rules.py` | `tests/test_passage.py::test_single_direction_at_any_moment` |
+| TRAP-32 | 漏掉换向清空 | 直接放下一批，清空时间不入占用 | 换向清空登记为占班并写准备步骤 | `app/modules/m5_schedule/rules.py` | `tests/test_passage.py::test_changeover_occupies_channel` |
+| TRAP-33 | 已进段船被扣停 | 让赶潮上行船先走，下行船在段内长停 | 最早离泊的下行船必须先清空 | `app/modules/m5_schedule/rules.py` | `tests/test_passage.py::test_downstream_in_section_is_cleared_first` |
+| TRAP-34 | 恢复重复占班 | 每次恢复再插一遍占班记录 | 槽位键确定，恢复与重跑幂等 | `app/store.py` | `tests/test_passage.py::test_restore_returns_old_sequence_without_duplicate_slots` |
 
 ## 对账规则
 

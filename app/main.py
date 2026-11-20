@@ -28,7 +28,9 @@ def page(request:Request,module:int):
     if module not in range(1,8): raise BusinessError("MODULE","模块不存在",404)
     ident=request.query_params.get("run_id")
     item=store.get(ident) if ident else store.save(sample_text(),run(sample_text()))
-    return templates.TemplateResponse(request=request,name="workbench.html",context={"title":'港口潮窗水深与进港排程',"modules":MODULES,"active":module,"run":item,"report":item["result"]["reports"][module-1]})
+    reports=item["result"].get("reports") or []
+    detail=reports[module-1] if module-1 < len(reports) else {"rows":[]}
+    return templates.TemplateResponse(request=request,name="workbench.html",context={"title":'港口潮窗水深与进港排程',"modules":MODULES,"active":module,"run":item,"versions":store.versions(item["id"]),"occupancy":store.occupancy(item["id"]),"report":detail})
 @app.post("/api/run")
 def calculate(payload:object=Body(default=None)):
     payload=object_payload(payload)
@@ -37,8 +39,18 @@ def calculate(payload:object=Body(default=None)):
     return store.save(text,run(text))
 @app.get("/api/runs")
 def list_runs(): return store.history()
+@app.get("/api/runs/{ident}/occupancy")
+def run_occupancy(ident:str): return store.occupancy(ident)
+@app.get("/api/runs/{ident}/versions")
+def run_versions(ident:str): return store.versions(ident)
 @app.get("/api/runs/{ident}")
 def run_detail(ident:str): return store.get(ident)
+@app.post("/api/restore")
+def restore(payload:object=Body(...)):
+    payload=object_payload(payload)
+    if not isinstance(payload.get("id"),str): raise BusinessError("REVIEW","批次编号须为文本")
+    if type(payload.get("revision")) is not int: raise BusinessError("REVISION","版本须为整数")
+    return store.restore(str(payload.get("id","")),payload["revision"])
 @app.post("/api/review")
 def review(payload:object=Body(...)):
     payload=object_payload(payload)

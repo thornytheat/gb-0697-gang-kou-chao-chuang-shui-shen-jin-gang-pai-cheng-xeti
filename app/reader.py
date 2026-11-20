@@ -12,7 +12,7 @@ def decode(raw):
             continue
     raise BusinessError("ENCODING", "无法识别文件编码")
 
-def read_rows(text, fields):
+def read_rows(text, fields, optional=("direction",)):
     if not text:
         raise BusinessError("EMPTY_FILE", "文件为空")
     if not text.strip():
@@ -25,9 +25,26 @@ def read_rows(text, fields):
     except StopIteration:
         raise BusinessError("BLANK_FILE", "文件只有空行")
     header = [x.strip() for x in header]
-    if set(header) != set(fields) or len(header) != len(fields):
+    required = set(fields) - set(optional)
+    present = set(header)
+    if not required <= present or len(present) != len(header) or not present <= set(fields):
         raise BusinessError("HEADER", "字段不匹配")
     accepted, rejected, blanks = [], [], 0
+    optional_pos = [i for i, name in enumerate(header) if name in optional]
+
+    def pad(cells):
+        """允许整行省略尾部可选列（如 direction），补空后按整行处理。"""
+        if not optional_pos or len(cells) == len(header):
+            return cells
+        if len(cells) != len(header) - len(optional_pos):
+            return cells
+        if any(pos < len(cells) for pos in optional_pos):
+            return cells
+        filled = list(cells)
+        for pos in optional_pos:
+            filled.insert(pos, "")
+        return filled
+
     try:
         for cells in rows:
             line = rows.line_num
@@ -36,10 +53,13 @@ def read_rows(text, fields):
                 continue
             if cells == header:
                 rejected.append({"line":line,"reason":"REPEATED_HEADER","raw":cells})
-            elif len(cells) != len(header):
+            elif len(cells) != len(header) and len(pad(cells)) != len(header):
                 rejected.append({"line":line,"reason":"COLUMN_COUNT","raw":cells})
             else:
-                accepted.append(dict(zip(header, [x.strip() for x in cells]), line=line))
+                row = dict(zip(header, [x.strip() for x in pad(cells)]), line=line)
+                for name in optional:
+                    row.setdefault(name, "")
+                accepted.append(row)
     except csv.Error:
         raise BusinessError("CSV", "引号或换行结构错误")
     if not accepted and not rejected and not blanks:

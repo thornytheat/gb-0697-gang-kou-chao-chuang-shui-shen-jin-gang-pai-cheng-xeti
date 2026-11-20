@@ -6,6 +6,9 @@
 
 潮位线性插值求达到最低水深的时刻区间，与航道占用和引航窗口求交，安全端点含义明确。
 
+单向窄段同一时刻只允许一个方向占用。排程按航向编队放行，异向之间留清空等待（换向本身占航道），
+工作台“窄段占用”带逐段只显示一个方向；换向前列出确认清空、瞭望复核、引航员换乘、发布许可四步。
+
 ## 启动
 
 ```bash
@@ -28,7 +31,7 @@ docker compose config --quiet
 
 ## 输入与输出
 
-CSV可用UTF-8或GB18030；上传保留字符串编号和物理行号。POST `/api/run` 接收 `text` 字段。`GET /api/runs` 查询历史，`POST /api/review` 接收 id、revision、decision。导出按钮下载唯一证据CSV，含运行摘要与隔离记录。
+CSV可用UTF-8或GB18030；上传保留字符串编号和物理行号。可选第9列 `direction`（`up`/`下行`之类）区分进出港，缺列按上行。POST `/api/run` 接收 `text` 字段。`GET /api/runs` 查询历史，`POST /api/review` 接收 id、revision、decision；`POST /api/restore` 回放指定旧修订的序列。导出按钮下载唯一证据CSV，含运行摘要、编队、换向、占班与隔离记录。
 
 SQLite命名卷保存运行记录。重建演示数据可更换卷名后重启。无需外部网络数据。规则定义见 `docs/DATA-DICTIONARY.md`；边界和测试对应关系见 `docs/DEPTH.md`。
 
